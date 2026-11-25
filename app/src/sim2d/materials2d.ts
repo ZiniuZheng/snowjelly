@@ -32,18 +32,33 @@ export const neoHookean: StressModel2D = (F, o, mu, lambda, out) => {
   out[3] = mu * (f11 - it11) + lj * it11;
 };
 
-// TODO(Ruize + Ziniu): fixed corotated jelly model (Stomakhin et al. 2012,
-// Jiang et al. 2016 course notes, eq. 6.x):
-//   P = 2 mu (F - R) + lambda (J - 1) J F^{-T}
-// where F = R S is the polar decomposition. In 2D, R is a rotation by
-//   theta = atan2(f10 - f01, f00 + f11),  R = [[cos, -sin], [sin, cos]].
-// Write it with the StressModel2D signature above, then add it to
-// JELLY_MODELS below and it will show up in the demo's "model" dropdown.
-// Note lambda (J - 1) J F^{-T} = lambda (J - 1) * cofactor(F), so no 1/J needed.
+/**
+ * Fixed corotated (Stomakhin et al. 2012):
+ *   P = 2 mu (F - R) + lambda (J - 1) J F^{-T}
+ * with F = R S the polar decomposition. In 2D the rotation is closed form:
+ *   theta = atan2(f10 - f01, f00 + f11),  R = [[cos, -sin], [sin, cos]].
+ * lambda (J - 1) J F^{-T} = lambda (J - 1) cofactor(F), which stays finite
+ * as J -> 0, so unlike neoHookean this needs no clamp.
+ */
+export const fixedCorotated: StressModel2D = (F, o, mu, lambda, out) => {
+  const f00 = F[o], f10 = F[o + 1], f01 = F[o + 2], f11 = F[o + 3];
+  const theta = Math.atan2(f10 - f01, f00 + f11);
+  const c = Math.cos(theta), s = Math.sin(theta);
+  // R in column-major order is [c, s, -s, c].
+  const J = f00 * f11 - f01 * f10;
+  const lj = lambda * (J - 1);
+  const twoMu = 2 * mu;
+  // cofactor(F) in storage order is [f11, -f01, -f10, f00].
+  out[0] = twoMu * (f00 - c) + lj * f11;
+  out[1] = twoMu * (f10 - s) - lj * f01;
+  out[2] = twoMu * (f01 + s) - lj * f10;
+  out[3] = twoMu * (f11 - c) + lj * f00;
+};
 
 /** Models selectable for jelly in the demo GUI. */
 export const JELLY_MODELS: Record<string, StressModel2D> = {
   'neo-Hookean': neoHookean,
+  'fixed corotated': fixedCorotated,
 };
 
 /** Lame parameters from Young's modulus E and Poisson ratio nu. */
