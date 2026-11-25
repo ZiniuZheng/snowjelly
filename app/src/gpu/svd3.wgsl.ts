@@ -1,9 +1,10 @@
 /**
  * 3x3 SVD in WGSL, matching app/src/sim3d/svd3.ts.
  *
- * Two-sided Jacobi in the style of McAdams et al. 2011: fixed sweeps over the
- * index pairs, each step diagonalizing the 2x2 block in closed form (atan2 +
- * sin/cos, no square roots of F^T F). Matrices are column-major mat3x3f.
+ * Two-sided (Kogbetliantz) Jacobi: fixed sweeps over the index pairs, each
+ * step diagonalizing the 2x2 block in closed form (atan2 + sin/cos, never
+ * forming F^T F). See app/src/sim3d/svd3.ts for how this differs from
+ * McAdams et al. 2011. Matrices are column-major mat3x3f.
  *
  * U and V are rotations (det = +1), S is sorted by magnitude with at most one
  * negative entry on the smallest singular value (iff det F < 0), and
@@ -22,14 +23,21 @@ const SVD3_IDENTITY: mat3x3f = mat3x3f(
   vec3f(0.0, 0.0, 1.0),
 );
 
+// WGSL leaves atan2(0, 0) undefined: a backend may return any value or NaN.
+// It is hit on every already-diagonal block (e.g. F = I for particles at
+// rest, where G = F = 0), so pin it to 0 like Math.atan2 does on the CPU.
+fn svd3SafeAtan2(y: f32, x: f32) -> f32 {
+  return select(atan2(y, x), 0.0, abs(x) + abs(y) < 1e-30);
+}
+
 // cos/sin of the left and right rotations diagonalizing a 2x2 block.
 fn svd3Givens(a: f32, b: f32, c: f32, d: f32) -> vec4f {
   let E = 0.5 * (a + d);
   let F = 0.5 * (a - d);
   let G = 0.5 * (c + b);
   let H = 0.5 * (c - b);
-  let a1 = atan2(G, F);
-  let a2 = atan2(H, E);
+  let a1 = svd3SafeAtan2(G, F);
+  let a2 = svd3SafeAtan2(H, E);
   let th = 0.5 * (a1 + a2);
   let ph = 0.5 * (a1 - a2);
   return vec4f(cos(th), sin(th), cos(ph), sin(ph));

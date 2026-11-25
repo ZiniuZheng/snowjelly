@@ -166,12 +166,31 @@ interface SvdTestResult {
 
 /**
  * Runs the WGSL 3x3 SVD (app/src/gpu/svd3.wgsl.ts) on random, rotation,
- * det < 0 and near-singular matrices, reads U, S, V back, and checks
+ * det < 0 and near-singular matrices plus identity/diagonal/zero cases,
+ * reads U, S, V back (any NaN fails the bounds below), and checks
  * reconstruction, orthogonality, det = +1 and the sign convention on the CPU.
  * Same protocol as selfTestParticleLayout: TS writes, GPU computes, TS checks.
  */
 async function selfTestSvd3(device: GPUDevice): Promise<SvdTestResult> {
-  const n = 512;
+  // Structured inputs that real particles have: F = I at rest, axis-aligned
+  // stretch/compression, a reflection, rank-deficient and zero matrices, and
+  // small perturbations of I. These contain exactly-zero 2x2 blocks, which
+  // hit atan2(0, 0) inside the SVD; random matrices never do.
+  const c30 = Math.cos(Math.PI / 6), s30 = Math.sin(Math.PI / 6);
+  const special: number[][] = [
+    [1, 0, 0, 0, 1, 0, 0, 0, 1],
+    [2, 0, 0, 0, 1, 0, 0, 0, 1],
+    [1, 0, 0, 0, 2, 0, 0, 0, 3],
+    [0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5],
+    [1, 0, 0, 0, 1, 0, 0, 0, -1],
+    [1, 0, 0, 0, 1, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [c30, s30, 0, -s30, c30, 0, 0, 0, 1],
+    [1 + 1e-7, 0, 0, 0, 1, 0, 0, 0, 1],
+    [1.001, 0.0002, 0, -0.0001, 0.999, 0.0003, 0, 0, 1.0005],
+  ];
+  const nRandom = 512;
+  const n = nRandom + special.length;
   const IN_FLOATS = 12; // 3 vec4f per matrix
   const OUT_FLOATS = 28; // U (3 vec4f), S (1), V (3)
   const mats = new Float32Array(n * IN_FLOATS);
@@ -204,7 +223,9 @@ async function selfTestSvd3(device: GPUDevice): Promise<SvdTestResult> {
   for (let i = 0; i < n; i++) {
     let F: number[];
     const kind = i % 4;
-    if (kind === 0) {
+    if (i >= nRandom) {
+      F = special[i - nRandom].slice();
+    } else if (kind === 0) {
       F = Array.from({ length: 9 }, () => gauss());
       const s = 10 ** (-2 + 4 * rand());
       for (let k = 0; k < 9; k++) F[k] *= s;

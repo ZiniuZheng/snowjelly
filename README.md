@@ -28,7 +28,7 @@ app/                        Vite root
   src/gpu/main.ts           WebGPU page: add render/compute passes here
   src/sim2d/mpm2d.ts        2D CPU MLS-MPM solver (APIC, quadratic B-splines)
   src/sim2d/materials2d.ts  2D stress models (neo-Hookean, fixed corotated)
-  src/sim3d/svd3.ts         3x3 SVD CPU prototype (two-sided Jacobi, McAdams et al. 2011)
+  src/sim3d/svd3.ts         3x3 SVD CPU prototype (two-sided Kogbetliantz Jacobi)
   src/gpu/svd3.wgsl.ts      the same 3x3 SVD in WGSL, exercised by a self-test on gpu.html
 docs/particle-format.md     particle buffer format spec
 scripts/check-mpm2d.mjs     headless solver checks

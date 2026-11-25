@@ -1,13 +1,18 @@
 /**
  * 3x3 SVD, CPU reference for the WebGPU solver.
  *
- * Two-sided Jacobi in the style of McAdams et al. 2011 ("Computing the SVD of
- * 3x3 matrices with minimal branching and elementary floating point
- * operations"): a fixed number of sweeps over the index pairs (0,1), (0,2),
- * (1,2), each step solving the 2x2 block in closed form and applying the
- * rotations to the full matrix. Unlike eigen-decomposing F^T F, this never
- * squares the condition number, which matters when snow clamps tiny singular
- * values.
+ * Two-sided (Kogbetliantz) Jacobi: a fixed number of sweeps over the index
+ * pairs (0,1), (0,2), (1,2), each step solving the 2x2 block's SVD in closed
+ * form and applying the rotations to the full matrix. It never forms F^T F,
+ * so it does not square the condition number, which matters when snow clamps
+ * tiny singular values.
+ *
+ * Not the McAdams et al. 2011 algorithm ("Computing the SVD of 3x3 matrices
+ * with minimal branching and elementary floating point operations"): that one
+ * runs Jacobi eigen-iterations on F^T F with approximate, trig-free Givens
+ * rotations and then recovers U with a Givens QR. It is the faster option if
+ * this SVD turns out to be a GPU bottleneck. Cite this file's method, not
+ * McAdams, in the report.
  *
  * Convention, relied on by snow clamping and fixed corotated:
  *  - U and V are rotations (det = +1), column-major like everything else.
@@ -54,6 +59,8 @@ function jacobi2(A: Float64Array, U: Float64Array, V: Float64Array, p: number, q
   // Closed-form 2x2 SVD: B = R diag(s0, s1) C^T.
   const E = 0.5 * (a + d), F = 0.5 * (a - d);
   const G = 0.5 * (c + b), H = 0.5 * (c - b);
+  // Math.atan2(0, 0) is 0, which the WGSL port has to reproduce explicitly
+  // (svd3SafeAtan2) because WGSL leaves it undefined.
   const a1 = Math.atan2(G, F), a2 = Math.atan2(H, E);
   const th = 0.5 * (a1 + a2), ph = 0.5 * (a1 - a2);
   const cu = Math.cos(th), su = Math.sin(th);
