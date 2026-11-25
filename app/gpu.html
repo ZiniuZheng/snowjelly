@@ -6,12 +6,20 @@
   <title>Snowjelly · WebGPU</title>
 </head>
 <body>
-  <div class="stage">
-    <div>
-      <canvas id="view" class="wide"></canvas>
-      <div id="status" class="status"></div>
-    </div>
-  </div>
+  <main class="gpu-stage">
+    <header class="gpu-header">
+      <div>
+        <h1>Snowjelly</h1>
+        <p>Static WebGPU particle preview</p>
+      </div>
+      <ul class="gpu-legend" aria-label="Particle materials">
+        <li class="gpu-jelly">Jelly</li>
+        <li class="gpu-snow">Snow</li>
+      </ul>
+    </header>
+    <canvas id="view" aria-label="A rose-colored jelly block beside a light blue snowball"></canvas>
+    <div id="status" class="status" role="status"></div>
+  </main>
   <script type="module" src="./src/gpu/main.ts"></script>
 </body>
 </html>

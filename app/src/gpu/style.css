@@ -1,0 +1,65 @@
+.gpu-stage {
+  width: min(100% - 32px, 1160px);
+  margin: 0 auto;
+  padding: clamp(24px, 5vh, 54px) 0 24px;
+}
+
+.gpu-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px 24px;
+  margin-bottom: 18px;
+}
+
+.gpu-header h1 {
+  margin: 0;
+  font-size: clamp(32px, 4vw, 49px);
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.gpu-header p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.gpu-legend {
+  display: flex;
+  gap: 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gpu-legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gpu-legend li::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--material-color);
+}
+
+.gpu-jelly { --material-color: #f080a0; }
+.gpu-snow { --material-color: #a3cfee; }
+
+.gpu-stage canvas {
+  display: block;
+  width: 100%;
+  height: clamp(300px, 67vh, 660px);
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px #293544;
+  background: #0b1016;
+}
+
+.gpu-stage .status {
+  margin-top: 16px;
+  overflow-wrap: anywhere;
+}

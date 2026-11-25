@@ -1,25 +1,22 @@
 /**
- * WebGPU skeleton page. Sets up the device, uploads a particle buffer in the
- * shared format, checks on the GPU that the TS layout matches the WGSL
- * struct, then runs a frame loop that just clears the screen.
- *
- * Renderer (Ian): add your pipeline in renderFrame() below and bind
- * `particleBuffer` as `var<storage, read> particles: array<Particle>`
- * in the vertex stage, indexed by instance_index.
+ * WebGPU particle preview. Validates the shared layout and SVD on the GPU,
+ * then renders a static sample from the same buffer format the solver uses.
  * Solver (Ziniu/Ruize): compute passes go in the same command encoder
  * before the render pass.
  */
 import '../common/style.css';
+import './style.css';
 import {
   MATERIAL,
   PARTICLE_STRIDE_BYTES,
   PARTICLE_WGSL,
   createParticleData,
   createParticleGPUBuffer,
-  makeRandomParticles,
   writeParticle,
 } from '../common/particleFormat';
 import { describeAdapter, initWebGPU, resizeCanvasToDisplaySize } from './device';
+import { makeDemoParticles } from './demoParticles';
+import { SCENE_BACKGROUND, createParticleRenderer } from './renderer';
 import { SVD3_WGSL } from './svd3.wgsl';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#view')!;
@@ -31,7 +28,7 @@ function log(html: string): void {
 }
 
 async function main(): Promise<void> {
-  const { adapter, device, context } = await initWebGPU(canvas);
+  const { adapter, device, context, format } = await initWebGPU(canvas);
   log(`adapter: ${describeAdapter(adapter)}`);
   log(`maxStorageBufferBindingSize: ${(device.limits.maxStorageBufferBindingSize / 2 ** 20).toFixed(0)} MB`);
 
@@ -45,10 +42,13 @@ async function main(): Promise<void> {
     : `<span class="bad">3x3 SVD self-test: FAIL (recon ${svd.maxRecon.toExponential(2)}, ` +
       `ortho ${svd.maxOrtho.toExponential(2)}, det ${svd.maxDet.toExponential(2)}), see console</span>`);
 
-  const particles = makeRandomParticles(PARTICLE_COUNT);
+  const particles = makeDemoParticles(PARTICLE_COUNT);
   const particleBuffer = createParticleGPUBuffer(device, particles);
   log(`particle buffer: ${PARTICLE_COUNT} particles x ${PARTICLE_STRIDE_BYTES} B = ${(particleBuffer.size / 1024).toFixed(0)} KB`);
-  log('renderer: not implemented yet (clear pass only)');
+  const renderer = await createParticleRenderer(device, format, particleBuffer, {
+    centerY: 0.18, height: 0.63, minWidth: 0.94,
+  });
+  log(`<span class="ok">renderer: ${particles.count.toLocaleString('en-US')} particles · shaded sphere impostors</span>`);
 
   function renderFrame(): void {
     resizeCanvasToDisplaySize(canvas);
@@ -57,13 +57,18 @@ async function main(): Promise<void> {
     const pass = encoder.beginRenderPass({
       colorAttachments: [{
         view: context.getCurrentTexture().createView(),
-        clearValue: { r: 0.063, g: 0.086, b: 0.125, a: 1 },
+        clearValue: SCENE_BACKGROUND,
         loadOp: 'clear',
         storeOp: 'store',
       }],
+      depthStencilAttachment: {
+        view: renderer.depthView(canvas.width, canvas.height),
+        depthClearValue: 1,
+        depthLoadOp: 'clear',
+        depthStoreOp: 'discard',
+      },
     });
-    // --- particle draw goes here (uses particleBuffer) ---
-    void particleBuffer;
+    renderer.draw(pass, particles.count);
     pass.end();
     device.queue.submit([encoder.finish()]);
     requestAnimationFrame(renderFrame);
